@@ -12,7 +12,7 @@ Base applicativa per trasformare estrazioni OCR deterministiche in un workspace 
 
 ## Avvio
 
-Richiede Node.js 22.5 o superiore (il server usa il modulo SQLite integrato `node:sqlite`).
+Richiede Node.js 22.5 o superiore (il server usa il modulo SQLite integrato `node:sqlite`; con Node 22 viene avviato tramite `--experimental-sqlite`).
 
 ```bash
 npm install
@@ -116,6 +116,8 @@ brew install tesseract tesseract-lang
 ```
 
 La coda frontend accetta attualmente solo file PDF.
+
+Durante l'estrazione il worker rileva anche entità deterministiche per pagina e documento, tra cui keyword marcate, email, URL, anni, date, identificativi di protocollo, organizzazioni, persone e località. Le entità vengono persistite nelle tabelle `entities`, `page_entities` e `document_entities`; le correlazioni tra documenti usano le entità condivise e conservano le pagine di provenienza nella relazione.
 
 L'upload dei PDF usa uno staging su disco senza `LIMIT_FILE_SIZE`, quindi non carica l'intero file nella RAM. Al termine dell'estrazione il JSON viene parsato e scritto automaticamente in SQLite.
 

@@ -39,6 +39,27 @@ def entities_from_text(text: str) -> list[dict]:
     for value in labeled_keywords:
         for keyword in re.split(r"[,;]", value):
             entities.append({"type": "keyword", "value": keyword.strip()})
+    for value in re.findall(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", text, re.IGNORECASE):
+        entities.append({"type": "email", "value": value})
+    for value in re.findall(r"\b(?:https?://|www\.)[^\s<>()]+", text, re.IGNORECASE):
+        entities.append({"type": "url", "value": value.rstrip('.,;')})
+    for value in re.findall(r"\b(?:19|20)\d{2}\b", text):
+        entities.append({"type": "year", "value": value})
+    for value in re.findall(r"\b\d{1,2}[/-]\d{1,2}[/-](?:19|20)?\d{2}\b", text):
+        entities.append({"type": "date", "value": value})
+    for value in re.findall(r"\b(?:C\.F\.|P\.IVA|IVA|ID|Protocollo|Prot\.?|Fascicolo)\s*[:#-]?\s*[A-Z0-9][A-Z0-9./_-]{2,}\b", text, re.IGNORECASE):
+        entities.append({"type": "identifier", "value": value})
+    organization_suffixes = r"S\.p\.A\.|S\.r\.l\.|Srl|SpA|Onlus"
+    for value in re.findall(rf"\b(?:[A-ZÀ-Ý][\wÀ-ÿ'’-]+\s+){{1,5}}(?:{organization_suffixes})\b", text):
+        entities.append({"type": "organization", "value": value.strip()})
+    for value in re.findall(r"\b(?:Ministero|Università|Azienda|Istituto|Fondazione|Associazione)(?:\s+(?:di|del|della|dei|degli|delle))?(?:\s+[A-ZÀ-Ý][\wÀ-ÿ'’-]+){0,4}", text):
+        entities.append({"type": "organization", "value": value.strip()})
+    location_labels = r"(?:via|viale|piazza|corso|comune di|città di|provincia di|regione|sede di)\s+[A-ZÀ-Ý][\wÀ-ÿ'’-]+(?:\s+[A-ZÀ-Ý][\wÀ-ÿ'’-]+){0,3}"
+    for value in re.findall(rf"\b{location_labels}", text, re.IGNORECASE):
+        entities.append({"type": "location", "value": value.strip()})
+    for value in re.findall(r"\b[A-ZÀ-Ý][a-zà-ÿ'’-]+\s+[A-ZÀ-Ý][a-zà-ÿ'’-]+\b", text):
+        if not any(value.casefold() in existing["value"].casefold() for existing in entities if existing["type"] == "organization"):
+            entities.append({"type": "person", "value": value})
     return unique_entities(entities)
 
 

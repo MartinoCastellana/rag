@@ -42,7 +42,6 @@ function collectEntities(container) {
     const value = String(candidate.value ?? '').trim();
     if (!value) continue;
     const type = normalizeType(candidate.type);
-    if (type === 'location' || type === 'year') continue;
     const key = `${type}:${normalizeValue(value)}`;
     if (!unique.has(key)) unique.set(key, { ...candidate, type, value });
   }
@@ -162,9 +161,23 @@ function buildDocumentTerms() {
   for (const row of rows) {
     if (!byDocument.has(row.document_id)) byDocument.set(row.document_id, new Map());
     for (const term of textTerms(row.text)) {
-      if (!byDocument.get(row.document_id).has(term)) byDocument.get(row.document_id).set(term, new Set());
-      byDocument.get(row.document_id).get(term).add(row.page_number);
+      const key = `text:${term}`;
+      if (!byDocument.get(row.document_id).has(key)) byDocument.get(row.document_id).set(key, { type: 'text', value: term, pages: new Set() });
+      byDocument.get(row.document_id).get(key).pages.add(row.page_number);
     }
+  }
+  const entityRows = db.prepare(`
+    SELECT de.document_id, e.entity_type, e.value, e.normalized_value, de.page_numbers_json
+    FROM document_entities de
+    JOIN entities e ON e.id = de.entity_id
+    ORDER BY de.document_id, e.entity_type, e.normalized_value
+  `).all();
+  for (const row of entityRows) {
+    if (!byDocument.has(row.document_id)) byDocument.set(row.document_id, new Map());
+    const key = `${row.entity_type}:${row.normalized_value}`;
+    const pageNumbers = new Set(JSON.parse(row.page_numbers_json || '[]'));
+    if (!byDocument.get(row.document_id).has(key)) byDocument.get(row.document_id).set(key, { type: row.entity_type, value: row.value, pages: new Set() });
+    for (const pageNumber of pageNumbers) byDocument.get(row.document_id).get(key).pages.add(pageNumber);
   }
   return byDocument;
 }
@@ -173,10 +186,10 @@ function makeRelation(aId, aEntities, bId, bEntities) {
   const shared = [...aEntities.keys()]
     .filter((term) => bEntities.has(term))
     .map((term) => ({
-      type: 'text',
-      value: term,
-      pagesA: [...aEntities.get(term)].sort((a, b) => a - b),
-      pagesB: [...bEntities.get(term)].sort((a, b) => a - b)
+      type: aEntities.get(term).type,
+      value: aEntities.get(term).value,
+      pagesA: [...aEntities.get(term).pages].sort((a, b) => a - b),
+      pagesB: [...bEntities.get(term).pages].sort((a, b) => a - b)
     }));
   if (shared.length < 2) return null;
   const score = Number((shared.length + Math.min(shared.length, 10) / 10).toFixed(2));
