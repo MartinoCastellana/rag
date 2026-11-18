@@ -1,0 +1,6 @@
+# Necessario per leggere PDF nativi e renderizzare le pagine scansionate.
+pymupdf>=1.24
+
+# Necessari per il fallback OCR delle pagine scansionate.
+pillow>=10.0
+pytesseract>=0.3.13
